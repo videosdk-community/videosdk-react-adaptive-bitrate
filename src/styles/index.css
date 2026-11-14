@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@import "./videosdk-tokens.css";
+
+/* Dark follows the class on <html>, same hook the tokens use. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* VideoSDK design-system naming contract (videosdk-design integration-core.md).
+   `inline` so utilities read the token vars directly and follow the light/dark aliases. */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-white: #fff;
+  --color-black: #000;
+  /* `canvas`, not `base`: a `base` color would collide with the `text-base` font size. */
+  --color-canvas: var(--bg-base);
+  --color-subtle: var(--bg-subtle);
+  --color-muted: var(--bg-muted);
+  --color-card: var(--surface-card);
+  --color-raised: var(--surface-raised);
+  --color-inset: var(--surface-inset);
+  --color-hairline: var(--border-subtle);
+  --color-line: var(--border-default);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-ink-tertiary: var(--text-tertiary);
+  --color-ink-disabled: var(--text-disabled);
+  --color-accent: var(--primary-button);
+  --color-accent-fg: var(--on-primary);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ring: var(--focus-ring);
+  --color-success-fg: var(--success-fg);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-success-dot: var(--green-500);
+  --color-danger-fg: var(--danger-fg);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-danger-solid: var(--red-600);
+  --color-danger-hover: var(--red-700);
+  --color-danger-soft: var(--red-400);
+  --color-warning-fg: var(--warning-fg);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+
+  --shadow-hairline: inset 0 0 0 1px var(--border-default);
+  --shadow-hairline-filled: var(--shadow-inset-hairline);
+}
+
+/* Same names and values as the tokens (--font-sans, --shadow-*, --ease-standard, --radius-*,
+   --text-*), so Tailwind's defaults are overridden by the unlayered token file anyway. */
+
+@theme {
+  --text-xs: 10px;
+  --text-xs--line-height: 14px;
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+  --text-xl: 18px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 20px;
+  --text-2xl--line-height: 28px;
+  --text-3xl: 24px;
+  --text-3xl--line-height: 32px;
+
+  --radius-xs: 4px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-pill: 999px;
+
+  --tracking-tight: -0.02em;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@utility duration-fast {
+  transition-duration: 120ms;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-canvas font-sans text-base text-ink antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--primary-200);
+    color: var(--on-primary);
+  }
+}

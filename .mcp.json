@@ -1,0 +1,28 @@
+{
+  "mcpServers": {
+    "videosdk": {
+      "type": "http",
+      "url": "https://docs.videosdk.live/mcp"
+    },
+    "alice": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.84",
+        "--config",
+        "playwright-mcp.alice.json",
+        "--caps=network"
+      ]
+    },
+    "bob": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.84",
+        "--config",
+        "playwright-mcp.bob.json",
+        "--caps=network"
+      ]
+    }
+  }
+}

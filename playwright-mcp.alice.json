@@ -1,0 +1,20 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "isolated": true,
+    "launchOptions": {
+      "channel": "chrome",
+      "args": [
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+        "--autoplay-policy=no-user-gesture-required",
+        "--disable-renderer-backgrounding",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--window-position=735,33",
+        "--window-size=735,461"
+      ]
+    },
+    "contextOptions": { "permissions": ["camera", "microphone"], "viewport": null }
+  }
+}
