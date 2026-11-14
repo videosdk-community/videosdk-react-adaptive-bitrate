@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParticipant } from "@videosdk.live/react-sdk";
 import { MicOff } from "lucide-react";
 
@@ -6,7 +6,7 @@ import { MicOff } from "lucide-react";
 // IntersectionObserver briefly sees the tile as off-screen during layout, which can freeze
 // remote video. A frozen tile is exactly what the tests look for, so it must never be our bug.
 export default function ParticipantTile({ participantId }: { participantId: string }) {
-  const { displayName, webcamOn, webcamStream, micOn, micStream, isLocal, setViewPort } =
+  const { displayName, webcamOn, webcamStream, micOn, micStream, isLocal, setViewPort, getVideoStats } =
     useParticipant(participantId);
   const boxRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,12 +67,44 @@ export default function ParticipantTile({ participantId }: { participantId: stri
         </div>
       )}
       {!isLocal && <audio ref={audioRef} autoPlay />}
+      {webcamOn && <StatsBadge getVideoStats={getVideoStats} isLocal={isLocal} />}
       {/* Scrim over video: dark in both themes, so its colors are fixed, not theme aliases. */}
       <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-md bg-black/60 px-2 py-1 text-sm text-white">
         {!micOn && <MicOff aria-label="Muted" className="size-3.5 text-danger-soft" />}
         {displayName}
         {isLocal && " (you)"}
       </div>
+    </div>
+  );
+}
+
+type VideoStats = { bitrate?: number; size?: { width?: number; height?: number; framerate?: number } };
+
+// Live video stats for this tile, polled once a second from VideoSDK's getVideoStats().
+// Local tile: what you send. Remote tile: what you receive from that person.
+function StatsBadge({ getVideoStats, isLocal }: { getVideoStats: () => Promise<VideoStats[]>; isLocal: boolean }) {
+  const [stats, setStats] = useState<VideoStats>();
+
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const [s] = await getVideoStats().catch(() => []);
+      setStats(s);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [getVideoStats]);
+
+  if (!stats) return null;
+  const kbps = Math.round(stats.bitrate ?? 0);
+  const { width = 0, height = 0, framerate = 0 } = stats.size ?? {};
+  return (
+    <div
+      data-testid="video-stats"
+      data-bitrate={kbps}
+      data-frame-height={height}
+      data-fps={framerate}
+      className="absolute top-2 left-2 rounded-md bg-black/60 px-2 py-1 font-mono text-xs text-white"
+    >
+      {isLocal ? "sending" : "receiving"} {kbps} kbps · {width}x{height} · {framerate} fps
     </div>
   );
 }
