@@ -71,3 +71,19 @@ both join, 48-54 new remote frames per 2 s both ways, `browser_network_state_set
 Alice in `RECONNECTING` after 4.8 s with 0 new frames at Bob, online returns her to `CONNECTED` in
 1.8 s and 6.4 s, then video both ways. This closes the "not yet run end to end through the MCP"
 note on `--caps=network`. Recovery time varies run to run, so expect a few seconds, not a fixed number.
+
+## 2026-11-14 Bad network = a local upload-capping proxy + TCP_ONLY, not DevTools throttling
+
+Spikes on Chromium 156 (headless and headed) and installed Chrome 157 (headed), react-sdk 1.2.0,
+`multiStream: false`. Video bitrate read from `RTCPeerConnection.getStats()` (bytes over 4 s).
+
+- CDP `Network.emulateNetworkConditions` with a 300 kbps upload cap on Alice: no effect. She kept
+  sending ~700 kbps and Bob kept 1280x720. DevTools throttling does not reach WebRTC media
+  (`setOffline` does, which is why the reconnect test works).
+- `--proxy-server` alone, or with `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`: media
+  still picks UDP (selected pair `prflx/udp`) and the cap does nothing. One early headless run did go
+  over TCP and looked like it worked; it did not repeat.
+- What works everywhere: VideoSDK `preferredProtocol: "TCP_ONLY"` (the app sets it when the URL has
+  `?tcp`) plus `--proxy-server=http://127.0.0.1:8899` on Alice's Chrome. Selected pair is TCP, and
+  `scripts/slow-network.mjs` caps it: ~700 kbps uncapped, ~190-260 kbps at a 300 kbps cap, on all three.
+- Only Alice's browser uses the proxy (`playwright-mcp.alice.json`). No system network settings, no sudo.

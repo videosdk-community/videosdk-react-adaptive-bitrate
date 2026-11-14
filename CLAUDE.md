@@ -19,14 +19,16 @@ When asked to test the call, run the check end to end, or "see if video works", 
 two MCP browsers. Do not answer from reading code, and do not run `pnpm test:e2e` unless asked.
 
 Setup
+- Start the slow-network proxy with `pnpm slow-network` in the background if it is not already
+  running (port 8899). Alice's browser sends everything through it, so without it she has no network.
 - Start the app with `pnpm dev` in the background if it is not already running, and use the URL it
   prints. Never start a second dev server.
 - Alice is the `alice` MCP server, Bob is the `bob` MCP server. One person per browser. Never put
   both people in one browser or in two tabs of one browser.
 - Leave the windows where the config files put them. Do not resize, move, or close them unless
   asked. Do not open extra tabs.
-- Join flow: Alice opens the app, types her name, clicks **New room**. Read the room id from her URL
-  (`?room=<id>`). Bob opens `/?room=<id>`, types his name, clicks **Join**. Wait for
+- Join flow: Alice opens the app with `?tcp` (`/?tcp`), types her name, clicks **New room**. Read
+  the room id from her URL (`?tcp=&room=<id>`). Bob opens `/?room=<id>`, types his name, clicks **Join**. Wait for
   `data-meeting-state="CONNECTED"` in both browsers before checking anything.
 
 Checking video (both directions, every time)
@@ -63,6 +65,14 @@ Network drop
 - Bring her back online within about 10 s (drops past about 30 s may not recover). Wait for
   `CONNECTED`, then run the video check both ways again.
 - Poll the state attribute; never wait on a fixed sleep and assume.
+
+Bad network (upload cap on Alice)
+- Alice's browser uses `scripts/slow-network.mjs` as its proxy, and `?tcp` makes VideoSDK send her
+  media over TCP (`preferredProtocol: "TCP_ONLY"`), so it goes through the proxy. Without `?tcp` her
+  media goes over UDP and the cap does nothing. Set her upload cap with
+  `curl "http://127.0.0.1:8899/rate?kbps=<n>"`, and `kbps=0` to remove it. Bob is never capped.
+- Chrome DevTools network throttling does not touch WebRTC media. Do not use it for this.
+- After changing the cap, give the call about 5-10 s to adapt before reading numbers.
 
 Headless run
 - When asked to run the tests headless, close nothing else and run `pnpm test:e2e`. It starts its
