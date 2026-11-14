@@ -20,6 +20,8 @@ export default function CallRoom({ roomId, name, onLeft }: Props) {
         micEnabled: true,
         webcamEnabled: true,
         multiStream: false,
+        // ?tcp in the URL forces media over TCP, so a local proxy can slow it down (see README).
+        preferredProtocol: new URLSearchParams(location.search).has("tcp") ? "TCP_ONLY" : "UDP_OVER_TCP",
         debugMode: false,
       }}
     >

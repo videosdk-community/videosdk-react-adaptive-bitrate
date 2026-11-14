@@ -11,7 +11,9 @@ export default function App() {
     return (
       <PreJoin
         onJoin={(c) => {
-          history.replaceState(null, "", `?room=${c.roomId}`);
+          const url = new URL(location.href); // keep other params, like ?tcp
+          url.searchParams.set("room", c.roomId);
+          history.replaceState(null, "", url);
           setCall(c);
         }}
       />
