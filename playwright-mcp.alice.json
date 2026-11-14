@@ -12,9 +12,16 @@
         "--disable-background-timer-throttling",
         "--disable-backgrounding-occluded-windows",
         "--window-position=735,33",
-        "--window-size=735,461"
+        "--window-size=735,461",
+        "--proxy-server=http://127.0.0.1:8899"
       ]
     },
-    "contextOptions": { "permissions": ["camera", "microphone"], "viewport": null }
+    "contextOptions": {
+      "permissions": [
+        "camera",
+        "microphone"
+      ],
+      "viewport": null
+    }
   }
 }
