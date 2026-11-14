@@ -1,141 +1,112 @@
-# Test a VideoSDK video call with Playwright
+# Test adaptive bitrate in a VideoSDK video call
 
-A small two-person team call built with the [VideoSDK React SDK](https://docs.videosdk.live/react/guide/video-and-audio-calling-api-sdk/quick-start?utm_source=github&utm_medium=readme&utm_campaign=video-call-testing-2026),
-and a Playwright suite that tests it the way a user would: two browsers with fake cameras join one
-meeting, and the tests check that video really plays both ways.
+A small two-person call built with the [VideoSDK React SDK](https://docs.videosdk.live/react/guide/video-and-audio-calling-api-sdk/quick-start?utm_source=github&utm_medium=readme&utm_campaign=bitrate-explained-2026),
+plus a way to give one person a slow network on purpose, so you can watch adaptive bitrate work.
 
-What the tests prove:
+Each video tile shows a live badge with what is being sent or received: bitrate (kbps), resolution
+and frame rate, read from VideoSDK's `getVideoStats()`.
 
-- Both people see each other's live video. Frames keep arriving and the picture is not black.
-- Muting shows on the other side.
-- Leaving removes the tile for the other person.
-- After a network drop, the call goes `RECONNECTING`, then rejoins on its own and video comes back.
+What you will see when Alice's upload is capped (measured on Chrome 157, VP8):
+
+| Alice's upload | What Bob receives |
+|---|---|
+| no cap | ~700 kbps, 1280x720, 20 fps |
+| 300 kbps | ~200-280 kbps, 960x540, 20 fps (dips to 360p at times) |
+| 150 kbps | ~100 kbps, 480x270, 20 fps |
+| cap removed | climbs back over the next ~45 s |
+
+The video gets softer, but it never stops.
+
+## Why not DevTools throttling?
+
+Chrome DevTools network throttling does not slow down WebRTC media. With a 300 kbps upload limit,
+the call kept sending ~700 kbps at 720p. So this repo uses a tiny local proxy instead
+([`scripts/slow-network.mjs`](scripts/slow-network.mjs)) that drains one browser's upload at a set
+speed. Two things send that browser's call media through it:
+
+- Chrome's `--proxy-server` flag, pointing at the proxy.
+- `?tcp` in the app URL, which sets VideoSDK's `preferredProtocol: "TCP_ONLY"`. Over the default
+  UDP, media skips the proxy.
 
 ## Run it
 
 1. Clone and install:
 
    ```bash
-   git clone https://github.com/videosdk-community/videosdk-react-video-call-testing.git
-   cd videosdk-react-video-call-testing
+   git clone https://github.com/videosdk-community/videosdk-react-adaptive-bitrate.git
+   cd videosdk-react-adaptive-bitrate
    pnpm install
-   pnpm exec playwright install chromium
    ```
 
-2. [Sign up for VideoSDK](https://app.videosdk.live/?utm_source=github&utm_medium=readme&utm_campaign=video-call-testing-2026)
-   and generate a temporary token on the API Keys page. Copy `.env.example` to `.env` and paste it:
+2. [Sign up for VideoSDK](https://app.videosdk.live/?utm_source=github&utm_medium=readme&utm_campaign=bitrate-explained-2026)
+   and generate a temporary token on the API Keys page. Copy `.env.example` to `.env` and paste it.
+
+3. Start the app and the slow-network proxy, each in its own terminal:
 
    ```bash
-   cp .env.example .env
+   pnpm dev
    ```
-
-3. Run the tests (headless):
 
    ```bash
-   pnpm test:e2e
+   pnpm slow-network
    ```
 
-   Or try the app yourself with `pnpm dev`, open it in two browser windows, and join one room.
+4. Open Alice in a separate Chrome that uses the proxy. The separate `--user-data-dir` keeps it away
+   from your normal Chrome profile.
 
-## How the tests work
+   macOS:
 
-- `playwright.config.ts` starts Chromium with `--use-fake-device-for-media-stream` and
-  `--use-fake-ui-for-media-stream`, so each browser gets a fake camera and no permission prompt.
-- `tests/fixtures.ts` creates a room through the VideoSDK REST API and joins Alice and Bob from two
-  browser contexts.
-- `tests/helpers/media.ts` reads `getVideoPlaybackQuality().totalVideoFrames` to check new frames
-  keep arriving, and draws a frame to a canvas to check it is not black.
-- `tests/reconnect.spec.ts` calls `context.setOffline(true)` on Alice, waits for the SDK's
-  [`RECONNECTING` state](https://docs.videosdk.live/react/guide/video-and-audio-calling-api-sdk/setup-call/meeting-connection-state-events?utm_source=github&utm_medium=readme&utm_campaign=video-call-testing-2026),
-  checks Bob stops getting her frames, then brings her back and waits for `CONNECTED`.
+   ```bash
+   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --user-data-dir=/tmp/alice --proxy-server=http://127.0.0.1:8899 "http://localhost:5173/?tcp"
+   ```
 
-Copying the tests into your own app: see [`tests/README.md`](tests/README.md).
+   Windows (PowerShell):
 
-## Let Claude Code test the call
+   ```powershell
+   & "C:\Program Files\Google\Chrome\Application\chrome.exe" --user-data-dir=$env:TEMP\alice --proxy-server=http://127.0.0.1:8899 "http://localhost:5173/?tcp"
+   ```
 
-`.mcp.json` adds two [Playwright MCP](https://github.com/microsoft/playwright-mcp) browsers,
-`alice` and `bob`. Out of the box the Playwright MCP gives you one browser with no fake camera and
-no network control. These two each get a fake camera and mic, network control (`--caps=network`),
-and their own window spot (`playwright-mcp.alice.json`, `playwright-mcp.bob.json`: Alice top-right,
-Bob bottom-right). Change `--window-position` and `--window-size` there to fit your screen. Both
-use your installed Google Chrome.
+   Linux:
 
-Follow these steps in order. Every command and prompt is copy-paste ready.
+   ```bash
+   google-chrome --user-data-dir=/tmp/alice --proxy-server=http://127.0.0.1:8899 "http://localhost:5173/?tcp"
+   ```
 
-### 1. Open Claude Code in the repo
+   Type a name and click **New room**.
 
-After the clone, install and `.env` steps in [Run it](#run-it):
+5. Open Bob in your normal browser: copy the room id from Alice's URL and open
+   `http://localhost:5173/?room=<id>`. Join.
 
-```bash
-claude
-```
+6. Make Alice's network worse and watch Bob's badge for Alice:
 
-Approve the `alice` and `bob` MCP servers when Claude Code asks.
+   ```bash
+   curl "http://127.0.0.1:8899/rate?kbps=300"
+   curl "http://127.0.0.1:8899/rate?kbps=150"
+   curl "http://127.0.0.1:8899/rate?kbps=0"    # no cap
+   ```
 
-### 2. Install the Playwright plugin
+   Give it 5-10 seconds after each change. For the raw numbers, open `chrome://webrtc-internals` in
+   Alice's Chrome: the video `outbound-rtp` entry shows `targetBitrate`, `frameHeight` and
+   `qualityLimitationReason: bandwidth` while capped.
 
-```text
-/plugin install playwright@claude-plugins-official
-```
+Using two machines, or one person on a phone, works too: only the browser started with
+`--proxy-server` and `?tcp` is slowed down.
 
-Then check that `alice` and `bob` are connected:
+## Let Claude Code run it
 
-```text
-/mcp
-```
+`.mcp.json` gives [Claude Code](https://claude.com/claude-code) three MCP servers:
 
-The call test uses only `alice` and `bob`.
+- `videosdk`: the [VideoSDK MCP server](https://docs.videosdk.live/react/guide/video-and-audio-calling-api-sdk/ai-tools/mcp-server?utm_source=github&utm_medium=readme&utm_campaign=bitrate-explained-2026),
+  so it looks up VideoSDK APIs in the current docs.
+- `alice` and `bob`: two [Playwright MCP](https://github.com/microsoft/playwright-mcp) browsers with
+  fake cameras. Alice's goes through the slow-network proxy (`playwright-mcp.alice.json`).
 
-### 3. Test the call
+Open `claude` in the repo, approve the servers, and ask it to start a call, cap Alice's upload and
+report what Bob receives. [`CLAUDE.md`](CLAUDE.md) tells it how: which browser is which, to join
+Alice with `?tcp`, to change the cap with `curl`, and to check real frames and bitrate instead of
+trusting the "Connected" badge.
 
-```text
-Start the app, open Alice and Bob, join them to the same call, and check that each person sees the other's live video.
-```
+## Tests
 
-### 4. Plant a bug (in a second Claude Code session)
-
-Open a second terminal in the same folder and start a separate session, so the one testing the
-call never sees the change:
-
-```bash
-claude
-```
-
-```text
-Add a small, realistic bug to the video tile so the other person's video stays black while the call still says connected. Change one line, add no comments about it, and don't tell me where it is.
-```
-
-Close this session when it is done.
-
-### 5. Test again, find and fix the bug
-
-Back in the first session:
-
-```text
-Rejoin Alice and Bob, run an end-to-end test of the call, and check that each sees the other's live video.
-```
-
-```text
-Find and fix the problem, then run the end-to-end test again.
-```
-
-### 6. Drop the network
-
-```text
-Take Alice offline, check what happens, bring her back online, and confirm video works both ways.
-```
-
-### 7. Run the same checks headless
-
-```text
-Close the browser windows and run pnpm test:e2e.
-```
-
-Or from a terminal:
-
-```bash
-pnpm test:e2e
-```
-
-To run the MCP browsers without windows instead, add `--headless` to both servers' args in
-`.mcp.json`.
+`pnpm test:e2e` runs a headless Playwright suite: video both ways, mute, leave, and recovery after a
+full network drop. See [`tests/README.md`](tests/README.md).
